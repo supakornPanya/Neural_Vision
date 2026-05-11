@@ -1,6 +1,8 @@
 *.keras
+**/all_web_models/
 !**/glob-import/dir/node_modules
 .DS_Store
+*.zip
 .idea
 .pnpm-store
 *.cpuprofile
