@@ -1,0 +1,115 @@
+:root {
+  --bg-main: #100E1A;
+  --accent-gradient: linear-gradient(135deg, #A456FA 0%, #4A22E5 50%, #2486FF 100%);
+  --text-main: #FFFFFF;
+  --success-color: #00FFC2;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  margin: 0;
+  padding: 0;
+  display: block; /* Fixes Vite centering bug */
+}
+
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  gap: 28px;
+}
+
+
+/* Fix the Title overlapping */
+header {
+  text-align: center;
+  margin-bottom: 50px; 
+}
+
+header h1 {
+  font-size: 2.5rem;
+  margin: 0;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap; /* Allows wrapping on smaller screens */
+}
+
+.col {
+  flex: 1;
+  min-width: 400px; /* Prevents columns from getting too thin */
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Layout for the Config Panel items */
+.config-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.config-item label {
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+select {
+  background: #1a1a2e;
+  color: white;
+  border: 1px solid #4A22E5;
+  padding: 10px;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.pixel {
+  width: 100%;
+  height: 100%;
+  border: 0.1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 2.5s, border 0.1s;
+  box-sizing: border-box;
+}
+
+.pixel:hover {
+  border: 1px solid #1872e0; /* Your Cerulean color */
+  background-color: rgba(18, 117, 237, 0.2) !important;
+  z-index: 10;
+}
+
+.pixel[style*="rgb(255, 255, 255)"] {
+  box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.visualization-area {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.visualization-area canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
