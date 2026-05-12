@@ -1,5 +1,5 @@
 *.keras
-**/all_web_models/
+**/models/
 !**/glob-import/dir/node_modules
 .DS_Store
 *.zip

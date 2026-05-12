@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
-import * as tf from "@tensorflow/tfjs";
+import React, { useState } from "react";
 import DrawingCanvas from "./components/DrawingCanvas";
 import ConfigPanel from "./components/ConfigPanel";
 import NeuralVisionCanvas from "./components/NeuralVisionCanvas";
 import "./App.css";
+import LoadingOverlay from "./components/Loading";
 
 function App() {
   // --- STATE MANAGEMENT ---
   const [grid, setGrid] = useState(Array(784).fill(0)); // 28x28 flattened
-  const [model, setModel] = useState(null);
+  const [isPredicting, setIsPredicting] = useState(false);
   const initialConfig = {
     layers: 1, // 1 to 20
     activation: "relu", // relu, sigmoid, tanh
@@ -18,6 +18,7 @@ function App() {
     ...initialConfig,
   });
 
+  // --- FUNCTIONALITY ---
   const handleAddNoise = () => {
     const noiseCount = Number(config.noise) || 0;
 
@@ -50,18 +51,9 @@ function App() {
     });
   };
 
-  const onStartPrediction = () => {
-    console.log("Starting prediction with the following data:");
-    console.log("Config data:", config);
-    console.log("28x28 grid data:", grid);
-    console.log("Data passed to NeuralVisionCanvas:", {
-      grid,
-      config,
-    });
-  };
-
   return (
     <div className="app-container">
+      {isPredicting && <LoadingOverlay />}
       <div className="m-8 text-center">
         <h1 className="text-4xl font-bold">CIS: Neural Vision</h1>
       </div>
@@ -94,19 +86,26 @@ function App() {
           <ConfigPanel
             config={config}
             setConfig={setConfig}
-            onStartPrediction={onStartPrediction}
+            isPredicting={isPredicting}
+            setIsPredicting={setIsPredicting}
           />
         </div>
       </div>
 
       {/* ROW 2: VISUALIZATION */}
-      <div className="col col-full">
+      {/* <div className="row row-2 m-8"> */}
         <div className="card-header">
           <div className="status-dot"></div>
           <h3>3. Neural Network Data Flow</h3>
         </div>
-        <NeuralVisionCanvas model={model} grid={grid} config={config} />
-      </div>
+
+        <NeuralVisionCanvas
+          isPredicting={isPredicting}
+          setIsPredicting={setIsPredicting}
+          grid={grid}
+          config={config}
+        />
+      {/* </div> */}
     </div>
   );
 }

@@ -1,57 +1,205 @@
 import * as tf from "@tensorflow/tfjs";
 
-/**
- * Computes prediction and weight influence for the Neural Network.
- * Formula: Influence % = sum(|neuron weights|) / sum(all layer weights)
- */
-export const computeNeuralData = async (model, gridData) => {
-  return tf.tidy(() => {
-    console.log("--- AI Computation Started ---");
+const modelCache = {};
+const modelLoaders = {}; // key -> Promise resolving to model
+let ongoingInference = null; // Promise for an in-progress inference
 
-    // 1. Normalize Input (0-255 to 0-1)
-    console.log("Step 1: Normalizing input data to [0, 1] range.");
-    const inputTensor = tf
-      .tensor(gridData, [1, 28, 28, 1], "float32")
-      .div(255.0);
+const normalizeInputLayer = (layerConfig) => {
+  if (!layerConfig || layerConfig.class_name !== "InputLayer") {
+    return layerConfig;
+  }
 
-    // 2. Run Prediction
-    console.log("Step 2: Running model prediction.");
-    const outputTensor = model.predict(inputTensor);
-    const softmaxScores = outputTensor.dataSync(); // Returns array of 10 scores
-    console.log("Step 2.1: Prediction scores retrieved:", softmaxScores);
+  const config = { ...(layerConfig.config || {}) };
 
-    // 3. Get Weights of the First Dense Layer
-    console.log("Step 3: Extracting weights from Layer 1.");
-    // model.layers[0] is usually Flatten, layers[1] is the first Dense layer
-    const denseLayer = model.layers.find((l) => l.getClassName() === "Dense");
-    const weightsTensor = denseLayer.getWeights()[0];
-    const weightsArray = weightsTensor.arraySync(); // Shape: [784, hidden_units]
+  if (config.batch_shape) {
+    config.batchInputShape = config.batch_shape;
+    delete config.batch_shape;
+  }
 
-    // 4. Calculate Influence Percentage
-    console.log(
-      "Step 4: Calculating Relative Influence for each input neuron.",
+  delete config.inputShape;
+
+  return {
+    ...layerConfig,
+    config,
+  };
+};
+
+const patchModelTopology = (modelTopology) => {
+  if (!modelTopology?.model_config?.config?.layers) {
+    return modelTopology;
+  }
+
+  return {
+    ...modelTopology,
+    model_config: {
+      ...modelTopology.model_config,
+      config: {
+        ...modelTopology.model_config.config,
+        layers:
+          modelTopology.model_config.config.layers.map(normalizeInputLayer),
+      },
+    },
+  };
+};
+
+const loadLayersModel = async (modelPath) => {
+  const response = await fetch(modelPath);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch model manifest: ${response.status} ${response.statusText}`,
     );
+  }
 
-    // Sum of absolute weights for each input neuron
-    const neuronAbsSums = weightsArray.map((weightsPerNeuron) =>
-      weightsPerNeuron.reduce((acc, w) => acc + Math.abs(w), 0),
-    );
+  const manifest = await response.json();
+  const patchedTopology = patchModelTopology(manifest.modelTopology);
+  const basePath = modelPath.replace(/\/[^/]*$/, "");
+  const weightGroups = manifest.weightsManifest || [];
+  const weightSpecs = weightGroups.flatMap((group) => group.weights || []);
+  const weightDataParts = [];
 
-    // Total sum of all absolute weights in the layer
-    const totalLayerWeightSum = neuronAbsSums.reduce((a, b) => a + b, 0);
+  for (const group of weightGroups) {
+    for (const relativePath of group.paths || []) {
+      const weightUrl = `${basePath}/${relativePath}`;
+      const weightResponse = await fetch(weightUrl);
+      if (!weightResponse.ok) {
+        throw new Error(
+          `Failed to fetch model weights: ${weightUrl} (${weightResponse.status} ${weightResponse.statusText})`,
+        );
+      }
+      weightDataParts.push(await weightResponse.arrayBuffer());
+    }
+  }
 
-    // Final Influence Percentage based on your equation
-    const influencePercentages = neuronAbsSums.map(
-      (sum) => sum / totalLayerWeightSum,
-    );
+  const totalBytes = weightDataParts.reduce(
+    (sum, part) => sum + part.byteLength,
+    0,
+  );
+  const mergedWeightData = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const part of weightDataParts) {
+    mergedWeightData.set(new Uint8Array(part), offset);
+    offset += part.byteLength;
+  }
 
-    console.log("Step 4.1: Influence Percentages calculated for 784 neurons.");
-    console.log("--- AI Computation Complete ---");
-
-    return {
-      prediction: softmaxScores,
-      influence: influencePercentages,
-      bestDigit: softmaxScores.indexOf(Math.max(...softmaxScores)),
-    };
+  return await tf.loadLayersModel({
+    load: async () => ({
+      modelTopology: patchedTopology,
+      weightSpecs,
+      weightData: mergedWeightData.buffer,
+    }),
   });
+};
+
+export const ProcessNeuralInference = async (config, input255) => {
+  if (ongoingInference) {
+    return await ongoingInference;
+  }
+
+  ongoingInference = (async () => {
+    let predictionResults = [];
+    let influencePercentages = [];
+    let inputTensor = null;
+    let predictionTensor = null;
+
+    try {
+      console.log("--- NEURAL INFERENCE START ---");
+
+      // Step 1: Prepare model key and path based on config
+      const normalizedInput = input255.map((value) => value / 255.0);
+      const layerCount = Math.max(1, Number(config.layers) || 1);
+      const key = `${config.activation}_${layerCount}`;
+      const folderName = `model_${config.activation}_${layerCount}layer_tfjs`;
+      const modelPath = `/models/${folderName}/model.json`;
+
+      let model = modelCache[key];
+      if (!model) {
+        if (!modelLoaders[key]) {
+          modelLoaders[key] = loadLayersModel(modelPath)
+            .then((loadedModel) => {
+              modelCache[key] = loadedModel;
+              delete modelLoaders[key];
+              console.log(`Model loaded and cached: ${modelPath}`);
+              return loadedModel;
+            })
+            .catch((error) => {
+              delete modelLoaders[key];
+              throw error;
+            });
+        }
+
+        model = await modelLoaders[key];
+      }
+
+      // Step 2: Run Model Prediction
+      inputTensor = tf.tensor(normalizedInput, [1, 28, 28, 1], "float32");
+      predictionTensor = model.predict(inputTensor);
+      const predT = Array.isArray(predictionTensor)
+        ? predictionTensor[0]
+        : predictionTensor;
+
+      predictionResults = Array.from(await predT.data());
+      console.log("Prediction results:", predictionResults);
+
+      // Step 3: Compute Neuron Influence
+      const denseLayer = model.layers.find(
+        (layer) => layer.getClassName() === "Dense",
+      );
+      if (denseLayer) {
+        const weights = denseLayer.getWeights();
+        const kernelTensor = weights[0];
+
+        if (kernelTensor) {
+          const kernelArray = await kernelTensor.array();
+          console.log(
+            "Dense kernel shape [input_neurons, output_neurons]:",
+            kernelTensor.shape,
+          );
+          console.log("Raw weights by input neuron:", kernelArray);
+          const neuronAbsSums = kernelArray.map((neuronWeights) =>
+            neuronWeights.reduce((sum, weight) => sum + Math.abs(weight), 0),
+          );
+          const totalAbsSum =
+            neuronAbsSums.reduce((sum, value) => sum + value, 0) || 1;
+          influencePercentages = neuronAbsSums.map((sum) => sum / totalAbsSum);
+          console.log("Absolute weight sum per input neuron:", neuronAbsSums);
+          console.log(
+            "Influence percentage per input neuron:",
+            influencePercentages,
+          );
+        }
+      } else {
+        console.warn("No Dense layer found to compute neuron influence.");
+      }
+
+      // Step 4: Clean up tensors about Memory Management
+      if (Array.isArray(predictionTensor)) {
+        predictionTensor.forEach((tensor) => tensor?.dispose?.());
+      } else {
+        predictionTensor?.dispose?.();
+      }
+      inputTensor?.dispose?.();
+
+      return {
+        prediction: predictionResults,
+        influence: influencePercentages,
+      };
+    } catch (error) {
+      console.error("Error during neural inference:", error);
+      return {
+        prediction: [],
+        influence: [],
+        error,
+      };
+    } finally {
+      predictionTensor?.dispose?.();
+      inputTensor?.dispose?.();
+      console.log("--- NEURAL INFERENCE END ---");
+    }
+  })();
+
+  try {
+    return await ongoingInference;
+  } finally {
+    ongoingInference = null;
+  }
 };

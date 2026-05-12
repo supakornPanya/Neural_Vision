@@ -1,58 +1,62 @@
 import React, { useState, useEffect } from "react";
-import * as tf from "@tensorflow/tfjs";
+import { ProcessNeuralInference } from "../utils/aiUtils";
 
-const NeuralVisionCanvas = ({ model, grid, config }) => {
+const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => {
   const [predictionDebug, setPredictionDebug] = useState("Waiting for data...");
   const [activePixels, setActivePixels] = useState(0);
 
   useEffect(() => {
-    // 1. Safety Checks
-    if (!model) {
-      setPredictionDebug("Model is currently loading...");
-      return;
-    }
-
-    // Count how many pixels the user actually drew
-    const drawnPixels = grid.filter((val) => val > 0).length;
+    const drawnPixels = grid.filter((value) => value > 0).length;
     setActivePixels(drawnPixels);
 
-    if (drawnPixels === 0) {
-      setPredictionDebug("Canvas is empty. Draw a number!");
+    if (!isPredicting) {
       return;
     }
 
-    // 2. Run the actual math (The Data Pipeline Test)
+    if (drawnPixels === 0) {
+      setPredictionDebug("Canvas is empty. Draw a number first.");
+      setIsPredicting(false);
+      return;
+    }
+
+    let cancelled = false;
+
     const runInference = async () => {
       try {
-        // Convert grid to tensor [1, 28, 28, 1]
-        const inputTensor = tf
-          .tensor(grid, [1, 28, 28, 1], "float32")
-          .div(255.0);
+        const result = await ProcessNeuralInference(config, grid);
+        if (cancelled) {
+          return;
+        }
 
-        // Run prediction
-        const outputTensor = model.predict(inputTensor);
-        const softmaxScores = await outputTensor.array(); // Get the raw array
+        const prediction = result?.prediction ?? [];
+        const bestDigit = result?.bestDigit ?? -1;
 
-        // Find the highest score
-        const scores = softmaxScores[0];
-        const bestIndex = scores.indexOf(Math.max(...scores));
-        const confidence = (scores[bestIndex] * 100).toFixed(2);
-
-        setPredictionDebug(
-          `AI Predicts: ${bestIndex} (Confidence: ${confidence}%)`,
-        );
-
-        // Cleanup memory to prevent lag
-        inputTensor.dispose();
-        outputTensor.dispose();
-      } catch (err) {
-        console.error("Math error:", err);
-        setPredictionDebug("Error running prediction.");
+        if (bestDigit >= 0 && prediction.length) {
+          const confidence = ((prediction[bestDigit] || 0) * 100).toFixed(2);
+          setPredictionDebug(
+            `AI Predicts: ${bestDigit} (Confidence: ${confidence}%)`,
+          );
+        } else {
+          setPredictionDebug("No prediction returned.");
+        }
+      } catch (error) {
+        console.error("Inference error:", error);
+        if (!cancelled) {
+          setPredictionDebug("Error running prediction.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPredicting(false);
+        }
       }
     };
 
     runInference();
-  }, [model, grid]); // This array is the "Trigger" - it runs whenever model or grid changes
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPredicting, grid, config, setIsPredicting]); 
 
   return (
     <div

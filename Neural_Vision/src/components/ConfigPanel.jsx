@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ConfigPanel = ({ config, setConfig, onStartPrediction}) => {
+const ConfigPanel = ({ config, setConfig, isPredicting, setIsPredicting }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -13,7 +13,7 @@ const ConfigPanel = ({ config, setConfig, onStartPrediction}) => {
         <input
           type="range"
           name="layers"
-          min="0"
+          min="1"
           max="20"
           value={config.layers}
           onChange={handleChange}
@@ -45,7 +45,7 @@ const ConfigPanel = ({ config, setConfig, onStartPrediction}) => {
           cursor: "pointer",
           fontWeight: "600",
         }}
-        onClick={onStartPrediction}
+        onClick={() => setIsPredicting(true)}
       >
         Start Prediction
       </button>
