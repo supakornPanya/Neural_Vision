@@ -90,6 +90,7 @@ const loadLayersModel = async (modelPath) => {
   });
 };
 
+// ---- MAIN INFERENCE FUNCTION ----
 export const ProcessNeuralInference = async (config, input255) => {
   if (ongoingInference) {
     return await ongoingInference;
@@ -154,14 +155,14 @@ export const ProcessNeuralInference = async (config, input255) => {
             "Dense kernel shape [input_neurons, output_neurons]:",
             kernelTensor.shape,
           );
-          console.log("Raw weights by input neuron:", kernelArray);
+          // console.log("Raw weights by input neuron:", kernelArray);
           const neuronAbsSums = kernelArray.map((neuronWeights) =>
             neuronWeights.reduce((sum, weight) => sum + Math.abs(weight), 0),
           );
           const totalAbsSum =
             neuronAbsSums.reduce((sum, value) => sum + value, 0) || 1;
           influencePercentages = neuronAbsSums.map((sum) => sum / totalAbsSum);
-          console.log("Absolute weight sum per input neuron:", neuronAbsSums);
+          // console.log("Absolute weight sum per input neuron:", neuronAbsSums);
           console.log(
             "Influence percentage per input neuron:",
             influencePercentages,
