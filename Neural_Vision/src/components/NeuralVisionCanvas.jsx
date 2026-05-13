@@ -7,13 +7,16 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
   const [inferenceData, setInferenceData] = useState(null);
   const canvasRef = useRef(null);
 
+  // Main Run AI
   useEffect(() => {
-    const drawnPixels = grid.filter((value) => value > 0).length;
-    setActivePixels(drawnPixels);
-
+    // Only run when prediction is triggered
     if (!isPredicting) {
       return;
     }
+
+    // Step 1: Count active pixels
+    const drawnPixels = grid.filter((value) => value > 0).length;
+    setActivePixels(drawnPixels);
 
     if (drawnPixels === 0) {
       setPredictionDebug("Canvas is empty. Draw a number first.");
@@ -23,8 +26,10 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
 
     let cancelled = false;
 
+    // Step 2: Runing Model Inference
     const runInference = async () => {
       try {
+        // Predicting...
         const result = await ProcessNeuralInference(config, grid);
         if (cancelled) {
           return;
@@ -35,6 +40,7 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
         const prediction = result?.prediction ?? [];
         const influence = result?.influence ?? [];
 
+        // Format prediction results
         if (prediction.length) {
           const bestDigit = prediction.indexOf(Math.max(...prediction));
           const confidence = ((prediction[bestDigit] || 0) * 100).toFixed(2);
@@ -56,12 +62,13 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
       }
     };
 
+    // Trick: Work like a async by loop call until get result
     runInference();
 
     return () => {
       cancelled = true;
     };
-  }, [isPredicting, grid, config, setIsPredicting]);
+  }, [isPredicting, setIsPredicting, grid, config]);
 
   // Canvas drawing effect
   useEffect(() => {
@@ -69,11 +76,12 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
       return;
     }
 
+    // Step 1: Setup canvas & Clear background
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.fillStyle = "rgba(16, 14, 26, 0.9)";
+    ctx.fillStyle = "rgb(8, 3, 33)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const prediction = inferenceData.prediction || [];
@@ -84,33 +92,33 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
     const outputNeurons = 10;
     const hiddenNeuronsPerLayer = 128;
 
-    // Simplified visualization: downsample input to 8x8 grid
-    const inputGridSize = 8;
+    // Step 2: Simplified Neuron (14*14 from 28*28 Neuron).
+    const inputGridSize = 28 / 2; // 14x14
     const sampledInput = [];
-    for (let i = 0; i < inputGridSize; i++) {
-      for (let j = 0; j < inputGridSize; j++) {
+    for (let i = 0; i < inputGridSize; i++) { // Sampling 14 row
+      for (let j = 0; j < inputGridSize; j++) { // Sampling 14 col
         const idx = Math.floor((i / inputGridSize) * 28) * 28 + Math.floor((j / inputGridSize) * 28);
         sampledInput.push(influence[idx] || 0);
       }
     }
 
+    // Step 3: Calculate positions
     // Canvas dimensions
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const margin = 40;
     const usableWidth = canvasWidth - 2 * margin;
     const usableHeight = canvasHeight - 2 * margin;
-
     // Calculate layer positions
     const totalLayers = 2 + Math.max(1, config.layers); // input + hidden + output
     const layerSpacing = usableWidth / (totalLayers - 1);
 
-    // Drawing helper functions
+    // Step 4: Drawing helper functions
     const drawNeuron = (x, y, radius, activation, label) => {
       // Neuron circle
-      ctx.fillStyle = `rgba(0, 255, 194, ${0.3 + activation * 0.7})`;
-      ctx.strokeStyle = `rgba(164, 86, 250, ${0.5 + activation * 0.5})`;
-      ctx.lineWidth = 2;
+      ctx.fillStyle = `rgba(255, ${25 + activation * 50}, 0, ${0.3 + activation * 0.7})`;
+      // ctx.strokeStyle = `rgba(255, 200, 0, ${0.5 + activation * 0.5})`;
+      // ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -126,6 +134,7 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
       }
     };
 
+    // Step 5: Draw connections with weight-based styling
     const drawConnection = (x1, y1, x2, y2, weight) => {
       ctx.strokeStyle = `rgba(74, 34, 229, ${Math.min(1, weight * 0.8)})`;
       ctx.lineWidth = Math.max(0.5, weight * 3);
@@ -135,27 +144,27 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
       ctx.stroke();
     };
 
-    // Layer data structure
+    // Step 6: Layer data structure
     const layers = [];
 
     // Layer 0: Input (downsampled)
-    const inputLayer = [];
-    for (let i = 0; i < sampledInput.length; i++) {
-      const x = margin + 0 * layerSpacing;
-      const row = Math.floor(i / inputGridSize);
-      const col = i % inputGridSize;
-      const ySpacing = usableHeight / (inputGridSize + 1);
-      const y = margin + (row + 1) * ySpacing;
-      const xSpacing = usableWidth / (inputGridSize + 2);
-      const adjustedX = margin + (col + 1) * xSpacing;
-      inputLayer.push({
-        x: adjustedX,
-        y: y,
-        activation: sampledInput[i],
-        label: Math.round(sampledInput[i] * 100),
-      });
-    }
-    layers.push(inputLayer);
+    // const inputLayer = [];
+    // for (let i = 0; i < sampledInput.length; i++) {
+    //   const x = margin + 0 * layerSpacing;
+    //   const row = Math.floor(i / inputGridSize);
+    //   const col = i % inputGridSize;
+    //   const ySpacing = usableHeight / (inputGridSize + 1);
+    //   const y = margin + (row + 1) * ySpacing;
+    //   const xSpacing = usableWidth / (inputGridSize + 2);
+    //   const adjustedX = margin + (col + 1) * xSpacing;
+    //   inputLayer.push({
+    //     x: adjustedX,
+    //     y: y,
+    //     activation: sampledInput[i],
+    //     label: Math.round(sampledInput[i] * 100),
+    //   });
+    // }
+    // layers.push(inputLayer);
 
     // Hidden layers
     for (let layer = 0; layer < config.layers; layer++) {
@@ -218,8 +227,14 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
       const radiusScale = layerIdx === 0 ? 3 : 6;
 
       for (const neuron of layer) {
-        const radius = Math.max(2, radiusScale * neuron.activation);
-        drawNeuron(neuron.x, neuron.y, radius, neuron.activation, neuron.label);
+        const radius = Math.max(2, radiusScale * neuron.activation * 1.7);
+        drawNeuron(
+          neuron.x,
+          neuron.y,
+          radius,
+          neuron.activation,
+          layerIdx === layers.length - 1 ? neuron.label : undefined,
+        );
       }
     }
 
@@ -227,12 +242,18 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
     ctx.fillStyle = "#00FFC2";
     ctx.font = "bold 12px monospace";
     ctx.textAlign = "center";
-    const layerLabels = ["Input", ...Array(config.layers).fill("Hidden"), "Output"];
+    const layerLabels = [
+      "Input",
+      ...Array(Number(config.layers))
+        .fill(0)
+        .map((_, i) => `Hidden ${i + 1}`),
+      "Output",
+    ];
     for (let i = 0; i < layerLabels.length; i++) {
       const x = margin + i * layerSpacing;
       ctx.fillText(layerLabels[i], x, margin - 15);
     }
-  }, [inferenceData, config]);
+  }, [inferenceData]);
 
   return (
     <div
@@ -253,7 +274,7 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
         style={{
           display: "block",
           width: "100%",
-          maxWidth: "1000px",
+          maxWidth: "2000px",
           height: "auto",
           border: "1px solid rgba(164, 86, 250, 0.5)",
           borderRadius: "8px",
@@ -264,7 +285,7 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
 
       <div style={{ display: "grid", gap: "10px", fontFamily: "monospace" }}>
         <div style={{ padding: "10px", background: "rgba(255,255,255,0.05)" }}>
-          <strong>Active Config:</strong> {config.layers} Layer(s) |{" "}
+          <strong>Config:</strong> {config.layers} Layer(s) |{" "}
           {config.activation.toUpperCase()}
         </div>
 

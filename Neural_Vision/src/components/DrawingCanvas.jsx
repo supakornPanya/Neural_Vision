@@ -52,7 +52,9 @@ const DrawingCanvas = ({ grid, setGrid, config, setConfig, onAddNoise}) => {
 
   const updatePixel = (index) => {
     const newGrid = [...grid];
-    newGrid[index] = 255; // Set to white
+    getNeighborIndices(index).forEach((neighborIndex) => {
+      newGrid[neighborIndex] = 255; // Set neighbor pixels to white
+    });
     setGrid(newGrid);
   };
 
