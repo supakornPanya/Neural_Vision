@@ -95,9 +95,13 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
     // Step 2: Simplified Neuron (14*14 from 28*28 Neuron).
     const inputGridSize = 28 / 2; // 14x14
     const sampledInput = [];
-    for (let i = 0; i < inputGridSize; i++) { // Sampling 14 row
-      for (let j = 0; j < inputGridSize; j++) { // Sampling 14 col
-        const idx = Math.floor((i / inputGridSize) * 28) * 28 + Math.floor((j / inputGridSize) * 28);
+    for (let i = 0; i < inputGridSize; i++) {
+      // Sampling 14 row
+      for (let j = 0; j < inputGridSize; j++) {
+        // Sampling 14 col
+        const idx =
+          Math.floor((i / inputGridSize) * 28) * 28 +
+          Math.floor((j / inputGridSize) * 28);
         sampledInput.push(influence[idx] || 0);
       }
     }
@@ -147,35 +151,39 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
     // Step 6: Layer data structure
     const layers = [];
 
-    // Layer 0: Input (downsampled)
-    // const inputLayer = [];
-    // for (let i = 0; i < sampledInput.length; i++) {
-    //   const x = margin + 0 * layerSpacing;
-    //   const row = Math.floor(i / inputGridSize);
-    //   const col = i % inputGridSize;
-    //   const ySpacing = usableHeight / (inputGridSize + 1);
-    //   const y = margin + (row + 1) * ySpacing;
-    //   const xSpacing = usableWidth / (inputGridSize + 2);
-    //   const adjustedX = margin + (col + 1) * xSpacing;
-    //   inputLayer.push({
-    //     x: adjustedX,
-    //     y: y,
-    //     activation: sampledInput[i],
-    //     label: Math.round(sampledInput[i] * 100),
-    //   });
-    // }
-    // layers.push(inputLayer);
+    // Step 7: Create neuron data for each layer
+    // Step 7.1: Input layer (as a grid)
+    const inputGridX = margin + 0 * layerSpacing;
+    const inputGridY = margin + usableHeight / 2;
+    const gridPixelSize = 3; // Size of each 28x28 pixel in visualization
+    const gridSize = 28 * gridPixelSize; // Total grid size: 168x168 pixels
+    const inputGridCenterX = inputGridX + 10;
+    const inputGridCenterY = inputGridY;
 
-    // Hidden layers
+    // Create a single input layer object for grid
+    const inputLayer = [
+      {
+        x: inputGridCenterX,
+        y: inputGridCenterY,
+        gridSize: gridSize,
+        pixelSize: gridPixelSize,
+        activation: 1,
+        label: undefined,
+        isGridLayer: true,
+      },
+    ];
+    layers.push(inputLayer);
+
+    // Step 7.2: Hidden layers
     for (let layer = 0; layer < config.layers; layer++) {
       const hiddenLayer = [];
-      const numNeurons = Math.min(hiddenNeuronsPerLayer, 16); // Limit for visualization
+      const numNeurons = Math.min(hiddenNeuronsPerLayer, 16);
       const ySpacing = usableHeight / (numNeurons + 1);
 
       for (let i = 0; i < numNeurons; i++) {
         const x = margin + (layer + 1) * layerSpacing;
         const y = margin + (i + 1) * ySpacing;
-        const activation = Math.random() * 0.5 + 0.3; // Placeholder
+        const activation = Math.random() * 0.5 + 0.3;
         hiddenLayer.push({
           x,
           y,
@@ -186,7 +194,7 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
       layers.push(hiddenLayer);
     }
 
-    // Output layer
+    // Step 7.3: Output layer
     const outputLayer = [];
     const ySpacing = usableHeight / (outputNeurons + 1);
     for (let i = 0; i < outputNeurons; i++) {
@@ -202,43 +210,118 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
     }
     layers.push(outputLayer);
 
-    // Draw connections
+    // Step 8: Draw connections
     for (let layerIdx = 0; layerIdx < layers.length - 1; layerIdx++) {
       const currentLayer = layers[layerIdx];
       const nextLayer = layers[layerIdx + 1];
 
-      for (let i = 0; i < Math.min(currentLayer.length, 8); i++) {
+      // Special handling for input grid to hidden layer
+      if (currentLayer[0]?.isGridLayer) {
         for (let j = 0; j < nextLayer.length; j++) {
-          const weight = (currentLayer[i].activation + nextLayer[j].activation) / 2;
-          drawConnection(
-            currentLayer[i].x,
-            currentLayer[i].y,
-            nextLayer[j].x,
-            nextLayer[j].y,
-            weight,
+          // Draw arrows from grid center to hidden neurons
+          const x1 = currentLayer[0].x + currentLayer[0].gridSize / 2;
+          const y1 = currentLayer[0].y;
+          const x2 = nextLayer[j].x;
+          const y2 = nextLayer[j].y;
+
+          ctx.strokeStyle = `rgba(74, 34, 229, 0.4)`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          // Draw arrow head
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          const arrowSize = 8;
+          ctx.fillStyle = `rgba(74, 34, 229, 0.4)`;
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(
+            x2 - arrowSize * Math.cos(angle - Math.PI / 6),
+            y2 - arrowSize * Math.sin(angle - Math.PI / 6),
+          );
+          ctx.lineTo(
+            x2 - arrowSize * Math.cos(angle + Math.PI / 6),
+            y2 - arrowSize * Math.sin(angle + Math.PI / 6),
+          );
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else {
+        // Normal connections between other layers
+        for (let i = 0; i < Math.min(currentLayer.length, 8); i++) {
+          for (let j = 0; j < nextLayer.length; j++) {
+            const weight =
+              (currentLayer[i].activation + nextLayer[j].activation) / 2;
+            drawConnection(
+              currentLayer[i].x,
+              currentLayer[i].y,
+              nextLayer[j].x,
+              nextLayer[j].y,
+              weight,
+            );
+          }
+        }
+      }
+    }
+
+    // Step 9: Draw neurons
+    for (let layerIdx = 0; layerIdx < layers.length; layerIdx++) {
+      const layer = layers[layerIdx];
+
+      // Special handling for input grid layer
+      if (layer[0]?.isGridLayer) {
+        const gridLayer = layer[0];
+        const gridX = gridLayer.x - gridLayer.gridSize / 2;
+        const gridY = gridLayer.y - gridLayer.gridSize / 2;
+
+        // Draw 28x28 grid
+        for (let i = 0; i < 28; i++) {
+          for (let j = 0; j < 28; j++) {
+            const idx = i * 28 + j;
+            const pixelX = gridX + j * gridLayer.pixelSize;
+            const pixelY = gridY + i * gridLayer.pixelSize;
+            const value = grid[idx] || 0;
+
+            // Grayscale based on activation
+            const grayscale = Math.floor(value * 255);
+            ctx.fillStyle = `rgb(${grayscale}, ${grayscale}, ${grayscale})`;
+            ctx.fillRect(
+              pixelX,
+              pixelY,
+              gridLayer.pixelSize,
+              gridLayer.pixelSize,
+            );
+
+            // Grid border
+            ctx.strokeStyle = `rgba(200, 200, 200, 0.2)`;
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(
+              pixelX,
+              pixelY,
+              gridLayer.pixelSize,
+              gridLayer.pixelSize,
+            );
+          }
+        }
+      } else {
+        // Draw regular neurons
+        const radiusScale = layerIdx === layers.length - 1 ? 6 : 6;
+        for (const neuron of layer) {
+          const radius = Math.max(2, radiusScale * neuron.activation * 1.7);
+          drawNeuron(
+            neuron.x,
+            neuron.y,
+            radius,
+            neuron.activation,
+            layerIdx === layers.length - 1 ? neuron.label : undefined,
           );
         }
       }
     }
 
-    // Draw neurons
-    for (let layerIdx = 0; layerIdx < layers.length; layerIdx++) {
-      const layer = layers[layerIdx];
-      const radiusScale = layerIdx === 0 ? 3 : 6;
-
-      for (const neuron of layer) {
-        const radius = Math.max(2, radiusScale * neuron.activation * 1.7);
-        drawNeuron(
-          neuron.x,
-          neuron.y,
-          radius,
-          neuron.activation,
-          layerIdx === layers.length - 1 ? neuron.label : undefined,
-        );
-      }
-    }
-
-    // Draw layer labels
+    // Step 10: Draw layer labels
     ctx.fillStyle = "#00FFC2";
     ctx.font = "bold 12px monospace";
     ctx.textAlign = "center";

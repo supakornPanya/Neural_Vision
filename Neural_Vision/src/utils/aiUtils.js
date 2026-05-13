@@ -163,10 +163,10 @@ export const ProcessNeuralInference = async (config, input255) => {
             neuronAbsSums.reduce((sum, value) => sum + value, 0) || 1;
           influencePercentages = neuronAbsSums.map((sum) => sum / totalAbsSum);
           // console.log("Absolute weight sum per input neuron:", neuronAbsSums);
-          console.log(
-            "Influence percentage per input neuron:",
-            influencePercentages,
-          );
+          // console.log(
+          //   "Influence percentage per input neuron:",
+          //   influencePercentages,
+          // );
         }
       } else {
         console.warn("No Dense layer found to compute neuron influence.");
