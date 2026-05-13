@@ -4,6 +4,7 @@ import ConfigPanel from "./components/ConfigPanel";
 import NeuralVisionCanvas from "./components/NeuralVisionCanvas";
 import "./App.css";
 import LoadingOverlay from "./components/Loading";
+import TechnicalDetails from "./components/TechnicalDetails";
 
 function App() {
   // --- STATE MANAGEMENT ---
@@ -93,7 +94,6 @@ function App() {
       </div>
 
       {/* ROW 2: VISUALIZATION */}
-      {/* <div className="row row-2 m-8"> */}
         <div className="card-header">
           <div className="status-dot"></div>
           <h3>3. Neural Network Data Flow</h3>
@@ -105,7 +105,11 @@ function App() {
           grid={grid}
           config={config}
         />
-      {/* </div> */}
+
+      {/* ROW 3: INFO */}
+      <div className="row row-3 m-8">
+        <TechnicalDetails />
+      </div>
     </div>
   );
 }
