@@ -250,7 +250,7 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
         }
       } else {
         // Normal connections between other layers
-        for (let i = 0; i < Math.min(currentLayer.length, 8); i++) {
+        for (let i = 0; i < currentLayer.length; i++) {
           for (let j = 0; j < nextLayer.length; j++) {
             const weight =
               (currentLayer[i].activation + nextLayer[j].activation) / 2;
