@@ -13,6 +13,7 @@ function App() {
   const initialConfig = {
     layers: 1, // 1 to 20
     activation: "relu", // relu, sigmoid, tanh
+    CNN_Layers: "mlp", // mlp or cnn
     noise: 0,
   };
   const [config, setConfig] = useState({

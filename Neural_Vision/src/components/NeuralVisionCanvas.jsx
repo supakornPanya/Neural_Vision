@@ -368,8 +368,8 @@ const NeuralVisionCanvas = ({ isPredicting, setIsPredicting, grid, config }) => 
 
       <div style={{ display: "grid", gap: "10px", fontFamily: "monospace" }}>
         <div style={{ padding: "10px", background: "rgba(255,255,255,0.05)" }}>
-          <strong>Config:</strong> {config.layers} Layer(s) |{" "}
-          {config.activation.toUpperCase()}
+          <strong>Config:</strong> |  {config.layers} Layer(s) |{" "}
+          {config.activation.toUpperCase()} | {config.CNN_Layers === "cnn" ? "With CNN" : "Without CNN"}
         </div>
 
         <div style={{ padding: "10px", background: "rgba(255,255,255,0.05)" }}>

@@ -55,6 +55,7 @@ const TechnicalDetails = () => {
             assert y_test.shape == (10000,)
           </code>
         </div>
+        <img src="../../public/Sample_mnist_dataset.png" alt="MNIST Dataset" />
       </section>
 
       {/* --- MODEL ARCHITECTURE SECTION --- */}
@@ -126,8 +127,8 @@ const TechnicalDetails = () => {
           <li>
             <strong>Dynamic Sizing:</strong> Every red neuron's radius is tied
             directly to its
-            <strong> Activation Value</strong> (ActivationFunction(Weight * X + Bias)). Higher confidence
-            = larger circle.
+            <strong> Activation Value</strong> (ActivationFunction(Weight * X +
+            Bias)). Higher confidence = larger circle.
           </li>
           <li>
             <strong>14x14 Downsampling:</strong> To prevent GPU overload and

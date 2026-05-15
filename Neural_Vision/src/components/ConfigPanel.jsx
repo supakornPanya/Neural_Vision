@@ -14,7 +14,7 @@ const ConfigPanel = ({ config, setConfig, isPredicting, setIsPredicting }) => {
           type="range"
           name="layers"
           min="1"
-          max="20"
+          max="10"
           value={config.layers}
           onChange={handleChange}
           style={{ accentColor: "#00FFC2" }}
@@ -31,6 +31,18 @@ const ConfigPanel = ({ config, setConfig, isPredicting, setIsPredicting }) => {
           <option value="relu">ReLU</option>
           <option value="sigmoid">Sigmoid</option>
           <option value="tanh">Tanh</option>
+        </select>
+      </div>
+
+      <div className="config-item">
+        <label>CNN Layers:</label>
+        <select
+          name="CNN_Layers"
+          value={config.CNN_Layers}
+          onChange={handleChange}
+        >
+          <option value="mlp">No CNN Layer</option>
+          <option value="cnn">Yes CNN Layer</option>
         </select>
       </div>
 

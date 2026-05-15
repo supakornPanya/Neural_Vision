@@ -109,7 +109,7 @@ export const ProcessNeuralInference = async (config, input255) => {
       const normalizedInput = input255.map((value) => value / 255.0);
       const layerCount = Math.max(1, Number(config.layers) || 1);
       const key = `${config.activation}_${layerCount}`;
-      const folderName = `model_${config.activation}_${layerCount}layer_tfjs`;
+      const folderName = `model_${config.CNN_Layers}_${config.activation}_${layerCount}layer_tfjs`;
       const modelPath = `/models/${folderName}/model.json`;
 
       let model = modelCache[key];
